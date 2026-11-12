@@ -1,6 +1,41 @@
 version: 2
 
-# Version updates are disabled for this fork. The file keeps its path because
-# archived notes link to it; an empty `updates` list stops Dependabot from
-# opening dependency PRs against this repository.
-updates: []
+# Version updates are disabled in this fork. GitHub rejects an empty `updates`
+# list ("contained invalid details"), and `open-pull-requests-limit: 0` is the
+# documented way to switch an ecosystem off while keeping the file valid:
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuring-dependabot-version-updates#disabling-dependabot-version-updates
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    exclude-paths:
+      # Vendored Cordis sources follow vendor/README.md instead of registry updates.
+      - "vendor/**"
+    schedule:
+      interval: "cron"
+      cronjob: "0 4 * * *"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 0
+    labels:
+      - "kind/dependency"
+      - "area/infra"
+
+  - package-ecosystem: "uv"
+    directory: "/python/sdk"
+    schedule:
+      interval: "cron"
+      cronjob: "0 4 * * *"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 0
+    labels:
+      - "kind/dependency"
+      - "area/infra"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "cron"
+      cronjob: "0 4 * * *"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 0
+    labels:
+      - "kind/dependency"
