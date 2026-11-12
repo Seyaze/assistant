@@ -1,0 +1,28 @@
+# Local OpenAI-compatible model overlay: Ollama on this machine by default.
+#
+#   pnpm dsh web --patch "$PWD/apps/cli/config/examples/local-ollama.yml"
+#
+# The route is credential-free because its endpoint is loopback; point
+# DSH_LOCAL_BASE_URL at another OpenAI-compatible server (LM Studio, llama.cpp,
+# vLLM) and that server then needs an `Authorization` header under `headers` or
+# a placeholder `apiKeyEnv`. The capacities are claims about the model you
+# serve: an undeclared model is sized at 1,000,000 context tokens, which stops
+# the harness from compacting before the server truncates the prompt.
+- id: llm-pi-ai
+  config:
+    providers:
+      ollama:
+        displayName: Ollama (local)
+        api: openai-completions
+        baseURL: !!js process.env.DSH_LOCAL_BASE_URL ?? 'http://127.0.0.1:11434/v1'
+        compat:
+          supportsDeveloperRole: false
+          maxTokensField: max_tokens
+        models:
+          - id: !!js process.env.DSH_LOCAL_MODEL ?? 'qwen3:8b'
+            contextWindow: !!js Number(process.env.DSH_LOCAL_CONTEXT_WINDOW ?? 32768)
+            maxTokens: !!js Number(process.env.DSH_LOCAL_MAX_TOKENS ?? 4096)
+- id: agent-default-model
+  config:
+    provider: ollama
+    model: !!js process.env.DSH_LOCAL_MODEL ?? 'qwen3:8b'

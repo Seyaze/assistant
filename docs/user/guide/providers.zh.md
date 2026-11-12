@@ -38,6 +38,30 @@ Provider ID 是永久的，因为请求、已保存会话、模型默认值和�
 
 探测读取的是常见网关公开的列表格式，但并非每个端点都用这些格式作答，所以它只是便利手段而非保证：探测失败或列表为空时，手动添加模型 ID 即可，效果完全一样。内置提供商一律由已安装目录作答，即使其 API 地址指向网关也是如此，要查看网关实际提供的模型，请通过自定义提供商探测。
 
+### 运行本地模型
+
+Ollama、LM Studio、llama.cpp 和 vLLM 都提供 OpenAI 兼容的 Chat Completions API，因此本地服务器就是一个使用 `openai-completions` 协议的自定义模型 API。把基础 URL 指向服务器的 `/v1` 根地址——Ollama 是 `http://127.0.0.1:11434/v1`，LM Studio 是 `http://127.0.0.1:1234/v1`——并列出服务器提供的模型 ID；**获取可用模型**会从 `GET /v1/models` 读取它们。回环地址的基础 URL 不需要凭据：适配器会提供 pi-ai 要求的占位值，本地服务器会忽略它。
+
+请为每个模型声明真实的上下文窗口和输出上限。手工声明且未填写这两项的模型会按 1,000,000 上下文 token 和 128,000 输出 token 处理，因此服务器截断提示词之前 harness 不会压缩。只接受 `max_tokens` 作为输出上限字段的服务器，还需要在路由上设置 `compat.maxTokensField: max_tokens`。
+
+```yaml
+- id: llm-pi-ai
+  config:
+    providers:
+      ollama:
+        api: openai-completions
+        baseURL: http://127.0.0.1:11434/v1
+        compat:
+          supportsDeveloperRole: false
+          maxTokensField: max_tokens
+        models:
+          - id: qwen3:8b
+            contextWindow: 32768
+            maxTokens: 4096
+```
+
+另一台机器上的服务器保持相同结构，但需要 pi-ai 接受的凭据：在 `headers` 下添加 `Authorization` 条目，或用 `apiKeyEnv` 引用一个占位变量。
+
 ## 选择模型
 
 已配置的提供商会出现在模型选择器中。选择模型也会将其设为新会话的默认值。已发送过请求的会话会保留自身日志中记录的模型。

@@ -958,6 +958,34 @@ describe('provider profile lifecycle', () => {
     expect(server.headers[0]?.authorization).toBe('Bearer ambient-key')
   })
 
+  it('authenticates a credential-free hand-declared route on a loopback endpoint', async () => {
+    const server = await mockServer([{ events: textEvents }])
+    const ctx = new Context()
+    onTestFinished(() => ctx.fiber.dispose())
+    await ctx.plugin(LlmRuntime)
+    // A local inference server owns no credential, and pi-ai refuses to run
+    // without one; the adapter supplies the placeholder the transport requires.
+    await ctx.plugin(LlmPiAi, {
+      providers: { local: { api: 'openai-completions', baseURL: server.url, models: [{ id: 'local-model' }] } },
+    })
+    const result = await assemble(ctx, { provider: 'local', model: 'local-model', messages: [] })
+    expect(result.finish).toEqual({ kind: 'stop' })
+    expect(server.headers[0]?.authorization).toBe('Bearer dsh-loopback-keyless')
+  })
+
+  it('keeps a credential-free hand-declared route off the network when its endpoint is remote', async () => {
+    const ctx = new Context()
+    onTestFinished(() => ctx.fiber.dispose())
+    await ctx.plugin(LlmRuntime)
+    await ctx.plugin(LlmPiAi, {
+      providers: { gateway: { api: 'openai-completions', baseURL: 'https://gateway.example/v1', models: [{ id: 'm' }] } },
+    })
+    const result = await assemble(ctx, { provider: 'gateway', model: 'm', messages: [] })
+    expect(result.finish.kind).toBe('error')
+    if (result.finish.kind !== 'error') throw new Error('expected an error finish')
+    expect(result.finish.failure.message).toContain('No API key')
+  })
+
   it('falls back to the ambient environment for apiKeyEnv without the credentials seam', async () => {
     vi.stubEnv('PI_CUSTOM_REF_KEY', 'custom-ref-key')
     const server = await mockServer([{ events: textEvents }])

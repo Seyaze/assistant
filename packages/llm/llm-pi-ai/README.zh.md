@@ -35,7 +35,7 @@ kind: "package-reference"
 
 ### 配置提供方路由
 
-每个 profile 都可以设置 `retryPolicy`；省略时使用 normal mode、最多重试五次。`apiKeyEnv` 是按请求经 harness 凭据 seam 解析的凭据引用，因此配置文件绝不包含密钥；解析为空的引用会让请求以 `MISSING_CREDENTIAL` 失败。省略它会让路由保持已配置但无密钥（configured-but-keyless）状态，对已安装目录路由而言即交由 pi-ai 提供方原生的环境发现。
+每个 profile 都可以设置 `retryPolicy`；省略时使用 normal mode、最多重试五次。`apiKeyEnv` 是按请求经 harness 凭据 seam 解析的凭据引用，因此配置文件绝不包含密钥；解析为空的引用会让请求以 `MISSING_CREDENTIAL` 失败。省略它会让路由保持已配置但无密钥（configured-but-keyless）状态，对已安装目录路由而言即交由 pi-ai 提供方原生的环境发现。手工声明且 `baseURL` 为回环地址的路由是无密钥例外：从不接收本机之外流量的服务器没有凭据可持有，因此适配器提供 pi-ai 要求的占位值，服务器会忽略它。
 
 ```yaml
 - name: '@deepseek-ai/dsh-llm-pi-ai'
@@ -266,7 +266,7 @@ pi-ai 事件变成 harness 的推理、文本、工具调用、用量与 finish 
 - **Anthropic 与 Gemini 模型发现最多读取 1,000 个模型**——请求使用 API 的最大页大小，但不会遍历 `has_more` 或 `nextPageToken`；第一页之外的条目需要手工添加。
 - **目录外模型需要明确的协议**——目录路由保留每个模型的协议，包括 `azure` 下的两种 Azure API。混合协议目录中不存在的模型需要显式设置路由级 `api`；该设置覆盖路由上的所有模型，且必须属于受支持的自定义协议。Azure 部署名称应通过 `AZURE_OPENAI_DEPLOYMENT_NAME_MAP` 设置，模型 ID 保持为目录中的 ID。
 - **模态声明不受校验**——声明 `image` 而其网关不支持的模型会在提示词准入后被提供方拒绝。持久图片仍留在历史中，同一误声明模型可能再次失败；切换到纯文本模型仍然可行，因为共享 LLM 运行时会针对该请求把图片引用投影为稳定文本。
-- **未认证路由取决于其协议**——不点名凭据的路由解析为已配置但无密钥，但 pi-ai 的 OpenAI 兼容实现仍要求 API 密钥或 `Authorization` 标头，因此无密钥本地服务器需要由 `apiKeyEnv` 引用或 `headers` 中的 `Authorization` 条目提供的占位凭据。pi-ai 的 Gemini 实现会拒绝没有 API 密钥的请求，因此 `google-generative-ai` 路由始终需要 `apiKeyEnv`，其值以 `x-goog-api-key` 发送。
+- **未认证路由取决于其协议**——`baseURL` 为回环地址的手工声明路由会收到内部占位凭据，本地服务器会忽略它；其他不点名凭据的路由仍需 pi-ai 接受的凭据。其 OpenAI 兼容实现要求 API 密钥或 `Authorization` 标头，因此远程无密钥网关需要 `headers` 中的 `Authorization` 条目或占位 `apiKeyEnv`。pi-ai 的 Gemini 实现会拒绝没有 API 密钥的请求，因此 `google-generative-ai` 路由始终需要 `apiKeyEnv`，其值以 `x-goog-api-key` 发送。
 - **Gemini 只接受四个推理等级**——在 `google-generative-ai` 上，pi-ai 的 Gemini 实现只发送 `minimal`、`low`、`medium` 或 `high`（不区分大小写），`reasoningEfforts` 的值为其他名称时请求失败；[模型页](../../client/ui-settings-models/README.zh.md)只为此类路由提供这些档位。不带等级的请求（包括 `off`）会发送 pi-ai 的关闭思考配置，无法关闭思考的模型（例如 Gemini 2.5 Pro）可能拒绝该请求。
 - **不支持 `GenerateOptions.stop`**——pi-ai 的通用流式选项无法跨提供方保证停止序列行为。
 - **对话更新支持只来自已安装的 pi-ai 目录**——原生系统与工具更新需要目录模型的对话中 compat 标志，profile 不能设置这些标志。手工声明的路由与未标记的模型会以用户角色提醒接收后续系统文本，并在每次请求开头接收完整的当前工具列表。

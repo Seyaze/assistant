@@ -117,6 +117,30 @@ declare module '@deepseek-ai/cordis' {
 const NS = 'llm-pi-ai'
 
 /**
+ * Credential pi-ai receives for a loopback route that names none. A locally
+ * served model expects no authentication, and pi-ai's OpenAI-compatible
+ * transport refuses to run without a key or an `Authorization` header; the
+ * local server ignores the placeholder it receives.
+ */
+const KEYLESS_LOOPBACK_KEY = 'dsh-loopback-keyless'
+
+/** Hostnames that name this machine: the loopback names and the 127/8 range. */
+const LOOPBACK_HOSTNAME = /^(?:localhost|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|\[::1\])$/
+
+/**
+ * Whether a route's endpoint stays on this machine. Traffic to a loopback
+ * address never leaves the host, so no provider credential exists to send.
+ * @param baseURL - the route endpoint; every resolvable hand-declared route
+ *   declares one.
+ * @returns whether the endpoint names a loopback host.
+ */
+function isLoopbackEndpoint(baseURL: string | undefined): boolean {
+  /* v8 ignore next -- a hand-declared route resolves no models without baseURL, so this guard is unreachable from configuration. */
+  if (baseURL === undefined) return false
+  return LOOPBACK_HOSTNAME.test(new URL(baseURL).hostname)
+}
+
+/**
  * The registry captures these per route; a change here must re-register.
  * Sorted by provider so a settings document that merely reorders its keys is
  * not mistaken for a route change.
@@ -215,7 +239,16 @@ export function apply(ctx: Context, config: Config): void {
     // handing pi-ai `undefined` would let it pick up an unrelated ambient key
     // (OPENAI_API_KEY and friends), billing another tenant for a request the
     // deployment meant to authenticate differently.
-    if (ref === undefined) return undefined
+    if (ref === undefined) {
+      // A hand-declared route on a loopback endpoint is a locally trusted
+      // server: the deployment holds no provider credential for something that
+      // never leaves the machine. pi-ai still requires one, so it receives the
+      // placeholder above. A catalog route keeps native discovery even when the
+      // deployment repointed its endpoint at a local server.
+      return catalogProvider(provider) === undefined && isLoopbackEndpoint(profile.baseURL)
+        ? KEYLESS_LOOPBACK_KEY
+        : undefined
+    }
     const credentials = ctx.get('credentials')
     const hit = credentials !== undefined
       ? (await credentials.resolve(ref))?.value

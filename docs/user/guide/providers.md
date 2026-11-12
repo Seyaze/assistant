@@ -38,6 +38,30 @@ Under **Model catalog**, choose **Fetch available models** to ask the endpoint w
 
 Discovery reads the listing formats common gateways publish, but not every endpoint answers in one of them, so treat it as a convenience rather than a guarantee: when it fails or lists nothing, add the model ids by hand and they work just the same. A built-in provider is always answered from the installed catalog, even when its base URL points at a gateway, so fetch through a custom provider to see what the gateway really serves.
 
+### Run a local model
+
+Ollama, LM Studio, llama.cpp, and vLLM serve an OpenAI-compatible Chat Completions API, so a local server is a custom model API with the `openai-completions` protocol. Point the base URL at the server's `/v1` root — `http://127.0.0.1:11434/v1` for Ollama, `http://127.0.0.1:1234/v1` for LM Studio — and list the model ids the server serves; **Fetch available models** reads them from `GET /v1/models`. A loopback base URL needs no credential: the adapter supplies the placeholder pi-ai requires, and the local server ignores it.
+
+Declare each model's real context window and output cap. A hand-declared model without them is sized at 1,000,000 context tokens and 128,000 output tokens, so the harness never compacts before the server truncates the prompt. A server that only accepts `max_tokens` as its output-cap field also needs `compat.maxTokensField: max_tokens` on the route.
+
+```yaml
+- id: llm-pi-ai
+  config:
+    providers:
+      ollama:
+        api: openai-completions
+        baseURL: http://127.0.0.1:11434/v1
+        compat:
+          supportsDeveloperRole: false
+          maxTokensField: max_tokens
+        models:
+          - id: qwen3:8b
+            contextWindow: 32768
+            maxTokens: 4096
+```
+
+A server on another machine keeps the same shape but needs a credential pi-ai accepts: add an `Authorization` entry under `headers`, or reference a placeholder variable with `apiKeyEnv`.
+
 ## Select a model
 
 Configured providers appear in the model picker. Selecting a model also makes it the default for new sessions. A session that has already sent a request retains the model recorded in its own log.
