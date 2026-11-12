@@ -1,41 +1,6 @@
 version: 2
 
-updates:
-  - package-ecosystem: "npm"
-    directory: "/"
-    exclude-paths:
-      # Vendored Cordis sources follow vendor/README.md instead of registry updates.
-      - "vendor/**"
-    schedule:
-      interval: "cron"
-      cronjob: "0 4 * * *"
-      timezone: "Asia/Shanghai"
-    cooldown:
-      default-days: 30
-    labels:
-      - "kind/dependency"
-      - "area/infra"
-
-  - package-ecosystem: "uv"
-    directory: "/python/sdk"
-    schedule:
-      interval: "cron"
-      cronjob: "0 4 * * *"
-      timezone: "Asia/Shanghai"
-    cooldown:
-      default-days: 30
-    labels:
-      - "kind/dependency"
-      - "area/infra"
-
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "cron"
-      cronjob: "0 4 * * *"
-      timezone: "Asia/Shanghai"
-    cooldown:
-      default-days: 30
-    labels:
-      - "kind/dependency"
-      - "area/infra"
+# Version updates are disabled for this fork. The file keeps its path because
+# archived notes link to it; an empty `updates` list stops Dependabot from
+# opening dependency PRs against this repository.
+updates: []
